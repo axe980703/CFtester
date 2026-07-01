@@ -1,5 +1,6 @@
 import urllib.request, json
 from websocket import create_connection
+import os
 
 
 ffox = "http://127.0.0.1:9222/json"
@@ -13,7 +14,7 @@ def get_tab_websocket():
         
         for tab in tabs:
             url = tab.get("url", "")
-            if "codeforces.com/contest/2211" in url:
+            if "codeforces.com/contest" in url:
                 return tab["webSocketDebuggerUrl"]
         
         print("No opened Codeforces tabs")   
@@ -32,12 +33,23 @@ def call(ws, method, msg_id, params={}):
             return msg
 
 
-def process_data(raw):
-    raw = json.loads(raw)
-    inp, out = raw["inp"], raw["out"]
-    print(inp, out)   
-    return 1, 2
+def save_samples(inputs, outputs):
+    work_dir = os.path.dirname(os.path.abspath(__file__))
+    save_dir = os.path.join(work_dir, "samples")
+    os.makedirs(save_dir, exist_ok=True)
 
+    for file in os.listdir(save_dir):
+        f_path = os.path.join(save_dir, file)
+        os.remove(f_path)
+    
+    for i, (inp, out) in enumerate(zip(inputs, outputs)):
+        inp_path = os.path.join(save_dir, f"sample{i + 1}.in")
+        out_path = os.path.join(save_dir, f"sample{i + 1}.out") 
+        with open(inp_path, "w") as inpf:
+            inpf.write(inp)    
+        with open(out_path, "w") as outf:
+            outf.write(out)
+ 
 
 socket_url = get_tab_websocket()
 
@@ -51,9 +63,8 @@ if socket_url:
             
     ws.close()
 
-    raw_res = response["result"]["result"]["value"]
-
-    inputs, outputs = process_data(raw_res)
+    jsresp = json.loads(response["result"]["result"]["value"])
+    inputs, outputs = jsresp["inp"], jsresp["out"]
     
-
+    save_samples(inputs, outputs)
 
