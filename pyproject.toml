@@ -1,0 +1,17 @@
+[project]
+name = "cftest"
+version = "0.1.0"
+description = "CLI tool to grab and test Codeforces samples"
+requires-python=">=3.9"
+dependencies = [
+    "requests",
+    "websocket-client"
+]
+
+[project.scripts]
+cftest="cftest.main:main"
+
+[build-system]
+
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

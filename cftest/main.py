@@ -105,20 +105,26 @@ def test_solution():
         test_sample(i)
 
 
-socket_url = get_tab_websocket()
+def main():
 
-if socket_url:
-    ws = websocket.create_connection(socket_url, suppress_origin=True)
+    socket_url = get_tab_websocket()
 
-    call(ws, "Page.enable", 1)
-    call(ws, "Runtime.enable", 2) 
+    if socket_url:
+        ws = websocket.create_connection(socket_url, suppress_origin=True)
 
-    response = call(ws, "Runtime.evaluate", 7, {"expression": jq, "returnByValue": True})
+        call(ws, "Page.enable", 1)
+        call(ws, "Runtime.enable", 2) 
+
+        response = call(ws, "Runtime.evaluate", 7, {"expression": jq, "returnByValue": True})
             
-    ws.close()
+        ws.close()
 
-    jsresp = json.loads(response["result"]["result"]["value"])
-    inputs, outputs = jsresp["inp"], jsresp["out"]
-    
-    save_samples(inputs, outputs)
-    test_solution() 
+        jsresp = json.loads(response["result"]["result"]["value"])
+        inputs, outputs = jsresp["inp"], jsresp["out"]
+        
+        save_samples(inputs, outputs)
+        test_solution() 
+
+
+if __name__ == "__main__":
+    main()
