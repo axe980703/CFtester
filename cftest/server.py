@@ -1,6 +1,7 @@
 import json, os, socket, subprocess, sys, threading, time
 from http.server import BasedHTTPRequestHandler, HTTPServer
 
+
 PORT = 8765
 HOST = "127.0.0.1"
 MAX_UPTIME = 2 * 60 * 60
@@ -14,7 +15,8 @@ class GrabHandler(BaseHTTPRequestHandler):
         
         try:
             data = json.loads(body)
-            save_samples(data)
+            inputs, outputs = data["inp"], data["out"]
+
 
         except json.JSONDecodeError:
             self.send_response(400)
@@ -22,6 +24,8 @@ class GrabHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         
+        save_samples(inputs, outputs)
+
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
@@ -35,12 +39,6 @@ class GrabHandler(BaseHTTPRequestHandler):
     
     def log_message(self, format, *args):
         pass
-
-
-def get_samples_dir():
-    work_dir = os.path.dirname(os.path.abspath(__file__))
-    smpl_dir = os.path.join(work_dir, "samples")
-    return smpl_dir
 
 
 def save_samples(inputs, outputs):
@@ -58,6 +56,49 @@ def save_samples(inputs, outputs):
             inpf.write(inp)    
         with open(out_path, "w") as outf:
             outf.write(out)
+    
+    os.utime(save_dir, None)
+
+
+def get_samples_dir():
+    work_dir = os.path.dirname(os.path.abspath(__file__))
+    smpl_dir = os.path.join(work_dir, "samples")
+    return smpl_dir
+
+
+def is_server_running():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.04)
+        return s.connect_ex((HOST, PORT)) == 0
+
+
+def ensure_server_running():
+    if is_server_running():
+        return
+    
+    subprocess.Popen(
+        [sys.executable, "-m", "cftest.server"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
+    
+    for _ in range(20):
+        if is_server_running():
+            break
+        time.sleep(0.05)
+
+
+def wait_for_fresh_grab(since, timeout=7):
+    smp_dir = get_samples_dir()
+    deadline = time.time() + timeout
+
+    while time.time() < deadline:
+        if os.path.isdir(smp_dir) and os.path.getmtime(smp_dir) > since:
+            return True
+        time.sleep(0.05)
+    
+    return False
 
 
 def _self_shutdown_timer(server):
