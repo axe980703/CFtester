@@ -1,5 +1,5 @@
 import json, os, socket, subprocess, sys, threading, time
-from http.server import BasedHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 PORT = 8765
@@ -12,7 +12,6 @@ class GrabHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
-        
         try:
             data = json.loads(body)
             inputs, outputs = data["inp"], data["out"]
@@ -44,11 +43,7 @@ class GrabHandler(BaseHTTPRequestHandler):
 def save_samples(inputs, outputs):
     save_dir = get_samples_dir()
     os.makedirs(save_dir, exist_ok=True)
-
-    for file in os.listdir(save_dir):
-        f_path = os.path.join(save_dir, file)
-        os.remove(f_path)
-    
+        
     for i, (inp, out) in enumerate(zip(inputs, outputs), start=1):
         inp_path = os.path.join(save_dir, f"sample{i}.in")
         out_path = os.path.join(save_dir, f"sample{i}.out") 
@@ -56,8 +51,13 @@ def save_samples(inputs, outputs):
             inpf.write(inp)    
         with open(out_path, "w") as outf:
             outf.write(out)
-    
-    os.utime(save_dir, None)
+
+
+def clear_samples():
+    smp_dir = get_samples_dir()
+    for file in os.listdir(smp_dir):
+        f_path = os.path.join(smp_dir, file)
+        os.remove(f_path)
 
 
 def get_samples_dir():
@@ -89,24 +89,23 @@ def ensure_server_running():
         time.sleep(0.05)
 
 
-def wait_for_fresh_grab(since, timeout=7):
-    smp_dir = get_samples_dir()
-    deadline = time.time() + timeout
-
-    while time.time() < deadline:
-        if os.path.isdir(smp_dir) and os.path.getmtime(smp_dir) > since:
-            return True
-        time.sleep(0.05)
-    
-    return False
-
-
 def _self_shutdown_timer(server):
     time.sleep(MAX_UPTIME)
     server.shutdown()
 
 
+def wait_for_samples(timeout=7):
+    smp_dir = get_samples_dir()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if os.path.isdir(smp_dir) and any(f.endswith(".in") for f in os.listdir(smp_dir)):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def run():
+    clear_samples()
     server = HTTPServer((HOST, PORT), GrabHandler)
     threading.Thread(target=_self_shutdown_timer, args=(server,), daemon=True).start()
     server.serve_forever()

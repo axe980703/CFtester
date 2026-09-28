@@ -2,9 +2,11 @@ import os, subprocess, time
 from cftest import server
 
 
+solution_path = "/home/kurban/CompeteCode/main"
+
 
 def test_solution():
-    smpl_dir = get_samples_dir()
+    smpl_dir = server.get_samples_dir()
     smpl_n = len(os.listdir(smpl_dir)) // 2
     
     for i in range(1, smpl_n + 1):
@@ -14,7 +16,7 @@ def test_solution():
 
 
 def test_sample(smpl_n):
-    smpl_dir = get_samples_dir() 
+    smpl_dir = server.get_samples_dir() 
     inp_path = os.path.join(smpl_dir, f"sample{smpl_n}.in")
     out_path = os.path.join(smpl_dir, f"sample{smpl_n}.out")
     
@@ -53,13 +55,10 @@ def check_outputs(got_out, cor_out):
     print("\033[0m")
 
 
-
-
 def main():
     server.ensure_server_running()
     
-    start_time = time.time()
-    if not server.wait_for_fresh_grab(since=start_time)
+    if not server.wait_for_samples(timeout=7):
         print("Cannot grab samples, check if a codeforces tab is opened")
         return
 
