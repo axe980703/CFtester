@@ -1,8 +1,6 @@
 const api = typeof browser !== "undefined" ? browser : chrome;
 const SERVER_URL = "http://127.0.0.1:8765";
-const RETRY_INTERVAL_MS = 200;
 
-let pendingPayload = null;
 
 
 async function isEnabled() {
@@ -11,41 +9,33 @@ async function isEnabled() {
 }
 
 
+async function refreshBadge() {
+      const enabled = await isEnabled();
+      api.action.setBadgeText({ text: enabled ? "ON" : "OFF" });
+      api.action.setBadgeBackgroundColor({ color: enabled ? "#2e9d4f" : "#c0392b" });
+      api.action.setTitle({ title: `cftest auto-grab: ${enabled ? "ON" : "OFF"} (click to toggle)` });
+}
+
+
 api.action.onClicked.addListener(async () => {
     const enabled = await isEnabled();
     await api.storage.local.set({enabled: !enabled});
-    api.action.setTitle({title: `cftest: auto-grab ${!enabled ? "ON" : "OFF"}` });
+    refreshBadge();
 });
 
 
-api.storage.onChanged.addListener((changes) => {
-    if (changes.enabled && changes.enabled.newValue == true && pendingPayload) {
-    sendToServer(pendingPayload);
-}
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type !== "CFTEST_GRAB") return;
+
+    fetch(SERVER_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(message.payload)
+    })
+     .then(res => sendResponse({ok: res.ok}))
+     .catch(() => sendResponse({ok: false})); 
+
+    return true;
 });
 
-
-async function sendToServer(payload) {
-    pendingPayload = payload;
-
-    const enabled = await isEnabled();
-    if (!enabled) return;
-
-    try {
-        const res = await fetch(SERVER_URL, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error("bad response");
-        pendingPayload = null;
-    } catch (e) {
-        setTimeout(() => sendToServer(payload), RETRY_INTERVAL_MS);
-    }
-}
-
-api.runtime.onMessage.addListener((message) => {
-    if (message.type == "CFTEST_GRAB") {
-        sendToServer(message.payload);
-    }
-});
+refreshBadge();

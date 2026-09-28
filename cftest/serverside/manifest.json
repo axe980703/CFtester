@@ -12,13 +12,13 @@
     },
     "content_scripts": [
         {
-            "matches": ["https://codeforces.com/contest/*"],
+            "matches": ["https://codeforces.com/*"],
             "js": ["content.js"],
             "run_at": "document_idle"
         }
     ],
     "host_permissions": [
-        "https://codeforces.com/contest/*",
+        "https://codeforces.com/*",
         "https://127.0.0.1/*"
     ]
 }
